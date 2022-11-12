@@ -30,9 +30,9 @@ def outputAudio(data, sr):
     sf.write('output.wav', data, sr)
     st.sidebar.audio('output.wav', format='audio/wav')
 
-def spectrogram(data, sr):
-    frequencies, times, spectro = signal.spectrogram(data, sr)
-    return frequencies, times, spectro
+# def spectrogram(data, sr):
+#     frequencies, times, spectro = signal.spectrogram(data, sr)
+#     return frequencies, times, spectro
 
 def fourierTransform(data, sr):
     N = len(data)
@@ -55,13 +55,40 @@ def plottingInfreqDomain(freq, data):
     st.plotly_chart(fig)
     
 
-def plottingSpectrogram(inbins, infreqs, inPxx):
-    trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
-    layout = go.Layout(height=430, width=600)
-    fig = go.Figure(data = trace, layout=layout)
-    fig.update_traces(showscale=False)
-    fig.update_layout(hovermode='x unified')
-    st.plotly_chart(fig)
+def plottingSpectrogram(data,idata,sr,flagToShow):
+    # xticks for first sample and second sample
+
+        # yticks for spectrograms
+        fig, ax = plt.subplots(1, 2,figsize=(6,2))
+        # fig.tight_layout(pad=10.0)
+
+        ax[0].specgram(data, Fs=sr)
+        ax[0].set_xlabel(xlabel='Time [sec]', size=5)
+        ax[0].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=5)
+        # ax[0].set_yticks(helper)
+        # ax[0].set_yticklabels(spec_yticks)
+        ax[0].set_title("First Channel", fontsize=5)
+        ax[0].tick_params(axis='both', which='both', labelsize=5)
+
+        ax[1].specgram(idata, Fs=sr)
+        ax[1].set_xlabel(xlabel='Time [sec]', size=5)
+        ax[1].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=5)
+        # ax[1].set_yticks(helper)
+        # ax[1].set_yticklabels(spec_yticks)
+        ax[1].set_title("Second Channel", fontsize=5)
+        ax[1].tick_params(axis='both', which='both', labelsize=5)
+        if flagToShow:
+            st.pyplot(fig)
+
+    
+    
+# def plottingSpectrogram(inbins, infreqs, inPxx):
+#     trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
+#     layout = go.Layout(height=430, width=600)
+#     fig = go.Figure(data = trace, layout=layout)
+#     fig.update_traces(showscale=False)
+#     fig.update_layout(hovermode='x unified')
+#     st.plotly_chart(fig)
 
 def bins_separation(frequency, amplitude, sNumber):
     freq_axis_list = []
@@ -154,11 +181,14 @@ def vowlFunction(mag, freq, value):
 def musicFunction(mag, freq, value):
     filter = []
     for i in range(len(mag)):
-        if 10 < freq[i] < 800 :        
-            filter.append(mag[i]*(1 + value[0]))
+        if 0 <= freq[i] < 279:    #Drums
+            filter.append(mag[i] *(1 + value[0]))
 
-        elif 900 < freq[i] < 3000 :        
-            filter.append(mag[i]*(1 + value[1]))
+        elif 280 < freq[i] < 1000:  #English horn
+            filter.append(mag[i] * (1 + value[1]))
+
+        elif 1000 <= freq[i] < 7000:  #Glockenspeil its actual range is from 784 4186
+            filter.append(mag[i] * (1 + value[2]))
 
         else:
             filter.append(mag[i])
@@ -244,15 +274,7 @@ def plotShow(data, idata,start_btn,pause_btn,resume_btn):
                 print("pause")
 
 
-        
-                    
-                    
 
-
-         
-            
-
-    
 
 st.set_page_config(page_title="Equalizer",layout='wide')
 st.markdown("""
@@ -290,7 +312,7 @@ elif option == 'None':
 if file is not None:
 
     data, sr = loadAudio(file)
-    frequencies, times, spectro = spectrogram(data, sr)
+    # frequencies, times, spectro = spectrogram(data, sr)
     fdata, freq, mag, phase, number_samples = fourierTransform(data, sr)
     if flag == 1:
         freq_axis_list, amplitude_axis_list,bin_max_frequency_value = bins_separation(freq, mag, sNumber)
@@ -299,6 +321,7 @@ if file is not None:
         pause_btn  = col2.button(label='Pause')
         resume_btn = col3.button(label='resume')
         valueSlider = Sliders_generation(bin_max_frequency_value, sNumber)
+        spec1 = st.checkbox('Show Spectrogram')
         if option == 'Frequency':
             newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
         elif option == 'Vowels':
@@ -312,7 +335,7 @@ if file is not None:
         outputAudio(idata, sr)
         with col1:
             plotShow(data,idata, start_btn,pause_btn,resume_btn)
-            # plotShow(data, start_btn)
+        plottingSpectrogram(data,idata,sr,spec1)
         
         # with col2:
             # plotShow(idata, start_btn)
