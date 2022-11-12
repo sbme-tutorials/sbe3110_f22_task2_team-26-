@@ -1,6 +1,14 @@
 import streamlit as st
 import plotly.graph_objects as go
 from Code import *
+if 'start' not in st.session_state:
+    st.session_state['start']=0
+if 'size1' not in st.session_state:
+    st.session_state['size1']=0
+if 'lines' not in st.session_state:
+    st.session_state['lines']=[]
+if 'flag' not in st.session_state:
+    st.session_state['flag'] = 1
 
 st.set_page_config(page_title="Equalizer",layout='wide')
 st.markdown("""
@@ -55,6 +63,8 @@ if file is not None:
             newMagnitudeList = vowlFunction(mag, freq, valueSlider) 
         elif option == 'Instruments':
             newMagnitudeList = musicFunction(mag, freq, valueSlider)
+        elif option == 'Medical Signal':
+            newMagnitudeList = ECG_mode(file)   
         else:
             newMagnitudeList = mag
         idata = inverseFourier(phase, newMagnitudeList)
