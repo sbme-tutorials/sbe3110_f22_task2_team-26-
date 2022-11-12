@@ -318,5 +318,5 @@ if file is not None:
             # plotShow(idata, start_btn)
             # plotShow(idata, start_btn)
     else:
-        print("")
+        print("nothing")
 
