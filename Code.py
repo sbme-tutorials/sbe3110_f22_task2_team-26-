@@ -139,7 +139,47 @@ def musicFunction(mag, freq, value):
             filter.append(mag[i])
     return filter
 
+def arrhythmia (arrhythmia,y_fourier):
+    new_y=y_fourier
+    df = pd.read_csv('arrhythmia_components.csv')
+    sub=df['sub']
+    abs_sub=df['abs_sub']
+    result = [item * arrhythmia for item in abs_sub]
+    new_y=np.add(y_fourier,result)
+    return new_y
 
+def ECG_mode(uploaded_file):
+
+    # ------------ECG Sliders  
+    Arrhythmia  =st.slider('Arrhythmia mode', step=1, max_value=100 , min_value=-100  ,value=0 )
+    Arrhythmia/=100
+    # Reading uploaded_file
+    df = pd.read_csv(uploaded_file)
+    uploaded_xaxis=df['time']
+    uploaded_yaxis=df['amp']
+    # Slicing big data
+    if (len(uploaded_xaxis)>1000):
+        uploaded_xaxis=uploaded_xaxis[:1000]
+    if (len(uploaded_yaxis)>1000):
+        uploaded_yaxis=uploaded_yaxis[:1000]
+
+    # fourier transorm
+    y_fourier = np.fft.fft(uploaded_yaxis)
+    
+    y_fourier=arrhythmia (Arrhythmia,y_fourier)
+    y_inverse_fourier = np.fft.ifft(y_fourier)
+    #Plotting
+    column1,column2,column3=st.columns([3,3,3])
+
+    uploaded_fig,uploaded_ax = plt.subplots()
+    uploaded_ax.set_title('ECG signal ')
+    # uploaded_ax.plot(uploaded_xaxis,y_inverse_fourier)  
+    uploaded_ax.plot(uploaded_xaxis[50:950],uploaded_yaxis[50:950])
+    uploaded_ax.plot(uploaded_xaxis[50:950],y_inverse_fourier[50:950])  
+    uploaded_ax.set_xlabel('Time ')
+    uploaded_ax.set_ylabel('Amplitude (mv)')
+    st.plotly_chart(uploaded_fig)
+    return y_inverse_fourier
 
 def plot_animation(df):
     brush = alt.selection_interval()
@@ -217,16 +257,74 @@ def plotShow(data, idata,start_btn,pause_btn,resume_btn,value,sr):
             s = st.session_state.lines.append(line_plot)
 
 
-    if st.session_state.flag == 1:
-        for i in range( st.session_state.start,N):
-                st.session_state.start =i 
-                step_df = df.iloc[0:size]
-                lines = plot_animation(step_df)
-                line_plot = line_plot.altair_chart(lines)
-                st.session_state.lines.append(line_plot)
-                st.session_state.size1 = size
-                size = i + burst
-                time.sleep(.1)
 
-    
-            
+
+st.set_page_config(page_title="Equalizer",layout='wide')
+st.markdown("""
+        <style>
+               .css-18e3th9 {
+                    padding-top: 2rem;
+                    padding-bottom: 15rem;
+                    padding-left: 2.5rem;
+                    padding-right: 5rem;
+                }
+        </style>
+        """, unsafe_allow_html=True)
+
+file = st.sidebar.file_uploader('Upload a file')
+col1, col2 = st.columns(2)
+option = st.sidebar.selectbox('', (' ', 'Frequency', 'Instruments', 'Medical Signal', 'Vowels' ))
+flag = 0 
+if option == 'Frequency':
+    sNumber = 10
+    flag = 1
+elif option == 'Instruments':
+    sNumber = 3
+    flag = 1
+elif option == 'Medical Signal':
+    sNumber = 4
+    flag = 1
+elif option == 'Vowels':
+    sNumber = 6
+    flag = 1
+elif option == 'None':
+    flag = 0
+
+
+
+if file is not None:
+
+    data, sr = loadAudio(file)
+    # frequencies, times, spectro = spectrogram(data, sr)
+    fdata, freq, mag, phase, number_samples = fourierTransform(data, sr)
+    if flag == 1:
+        freq_axis_list, amplitude_axis_list,bin_max_frequency_value = bins_separation(freq, mag, sNumber)
+        col1,col2,col3,col4 = st.columns(4)
+        start_btn  = col1.button("▷")
+        pause_btn  = col2.button(label='Pause')
+        resume_btn = col3.button(label='resume')
+        valueSlider = Sliders_generation(bin_max_frequency_value, sNumber)
+        spec1 = st.checkbox('Show Spectrogram')
+        if option == 'Frequency':
+            newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
+        elif option == 'Vowels':
+            newMagnitudeList = vowlFunction(mag, freq, valueSlider) 
+        elif option == 'Instruments':
+            newMagnitudeList = musicFunction(mag, freq, valueSlider)
+        elif option == 'Medical Signal':
+            newMagnitudeList = ECG_mode(file)    
+        else:
+            newMagnitudeList = mag
+        idata = inverseFourier(phase, newMagnitudeList)
+        audio = st.sidebar.audio(file, format='audio/wav')
+        outputAudio(idata, sr)
+        with col1:
+            plotShow(data,idata, start_btn,pause_btn,resume_btn)
+        plottingSpectrogram(data,idata,sr,spec1)
+        
+        # with col2:
+            # plotShow(idata, start_btn)
+            # plotShow(idata, start_btn)
+    else:
+        print("nothing")
+
