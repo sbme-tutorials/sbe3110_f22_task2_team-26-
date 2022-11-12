@@ -55,6 +55,34 @@ def plottingInfreqDomain(freq, data):
     st.plotly_chart(fig)
     
 
+# def plottingSpectrogram(data,idata,sr,flagToShow):
+#     # xticks for first sample and second sample
+
+#         # yticks for spectrograms
+#         fig, ax = plt.subplots(1, 2,figsize=(15,30))
+#         # fig.tight_layout(pad=10.0)
+#         layout = go.Layout(height=430, width=600)
+
+#         ax[0].specgram(data, Fs=sr)
+#         ax[0].set_xlabel(xlabel='Time [sec]', size=25)
+#         ax[0].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=25)
+#         # ax[0].set_yticks(helper)
+#         # ax[0].set_yticklabels(spec_yticks)
+#         ax[0].set_title("First Channel", fontsize=30)
+#         ax[0].tick_params(axis='both', which='both', labelsize=18)
+
+#         ax[1].specgram(idata, Fs=sr)
+#         ax[1].set_xlabel(xlabel='Time [sec]', size=25)
+#         ax[1].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=25)
+#         # ax[1].set_yticks(helper)
+#         # ax[1].set_yticklabels(spec_yticks)
+#         ax[1].set_title("Second Channel", fontsize=30)
+#         ax[1].tick_params(axis='both', which='both', labelsize=18)
+#         if flagToShow:
+#             st.pyplot(fig)
+
+    
+    
 def plottingSpectrogram(inbins, infreqs, inPxx):
     trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
     layout = go.Layout(height=430, width=600)
@@ -111,44 +139,12 @@ def vowlFunction(mag, freq, value):
     # ʊRange = [380, 940, 2300]     800-1000  2000-2400
     # uRange = [320, 920, 2200]     800-1000  2000-2300
     filter = []
+    arr =[]
     for i in range(len(mag)):
-        if value[0] != 0:
             if 1000 < freq[i] < 1250:             
-                filter.append(mag[i] * ((value[0]+1)))
-            elif 2000 < freq[i] < 2800:
-                filter.append(mag[i] * (value[0]+1))
+                filter.append(mag[i])
             else:
                 filter.append(mag[i])
-        elif value[1] != 0:
-            if 2850 < freq[i] < 3450:             
-                filter.append(mag[i] * (value[1]+1))
-            elif 3000 < freq[i] < 3500:
-                filter.append(mag[i] * (value[1]+1))
-            else:
-                filter.append(mag[i])
-        elif value[2] != 0:
-            if 300 < freq[i] < 2300:             
-                filter.append(mag[i] * (value[2]+1))
-            elif 2800 < freq[i] < 3000:
-                filter.append(mag[i] * (value[2]+1))
-            else:
-                filter.append(mag[i])
-        elif value[3] != 0:
-            if 300 < freq[i] < 1000:             
-                filter.append(mag[i] * (value[3]+1))
-            elif 2000 < freq[i] < 2400:
-                filter.append(mag[i] * (value[3]+1))
-            else:
-                filter.append(mag[i])
-        elif value[4] != 0:
-            if 280 < freq[i] < 1000:             
-                filter.append(mag[i] * (value[4]+1))
-            elif 1800 < freq[i] < 2500:
-                filter.append(mag[i] * (value[4]+1))
-            else:
-                filter.append(mag[i])
-        else:
-            filter.append(mag[i])
     return filter
 
 def musicFunction(mag, freq, value):
@@ -244,15 +240,7 @@ def plotShow(data, idata,start_btn,pause_btn,resume_btn):
                 print("pause")
 
 
-        
-                    
-                    
 
-
-         
-            
-
-    
 
 st.set_page_config(page_title="Equalizer",layout='wide')
 st.markdown("""
@@ -299,6 +287,7 @@ if file is not None:
         pause_btn  = col2.button(label='Pause')
         resume_btn = col3.button(label='resume')
         valueSlider = Sliders_generation(bin_max_frequency_value, sNumber)
+        spec1 = st.checkbox('Show Spectrogram')
         if option == 'Frequency':
             newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
         elif option == 'Vowels':
@@ -312,7 +301,7 @@ if file is not None:
         outputAudio(idata, sr)
         with col1:
             plotShow(data,idata, start_btn,pause_btn,resume_btn)
-            # plotShow(data, start_btn)
+            plottingSpectrogram(frequencies,times,spectro)
         
         # with col2:
             # plotShow(idata, start_btn)
