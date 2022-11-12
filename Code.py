@@ -55,43 +55,6 @@ def plottingInfreqDomain(freq, data):
     st.plotly_chart(fig)
     
 
-<<<<<<< HEAD
-# def plottingSpectrogram(data,idata,sr,flagToShow):
-#     # xticks for first sample and second sample
-
-#         # yticks for spectrograms
-#         fig, ax = plt.subplots(1, 2,figsize=(15,30))
-#         # fig.tight_layout(pad=10.0)
-#         layout = go.Layout(height=430, width=600)
-
-#         ax[0].specgram(data, Fs=sr)
-#         ax[0].set_xlabel(xlabel='Time [sec]', size=25)
-#         ax[0].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=25)
-#         # ax[0].set_yticks(helper)
-#         # ax[0].set_yticklabels(spec_yticks)
-#         ax[0].set_title("First Channel", fontsize=30)
-#         ax[0].tick_params(axis='both', which='both', labelsize=18)
-
-#         ax[1].specgram(idata, Fs=sr)
-#         ax[1].set_xlabel(xlabel='Time [sec]', size=25)
-#         ax[1].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=25)
-#         # ax[1].set_yticks(helper)
-#         # ax[1].set_yticklabels(spec_yticks)
-#         ax[1].set_title("Second Channel", fontsize=30)
-#         ax[1].tick_params(axis='both', which='both', labelsize=18)
-#         if flagToShow:
-#             st.pyplot(fig)
-
-    
-    
-def plottingSpectrogram(inbins, infreqs, inPxx):
-    trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
-    layout = go.Layout(height=430, width=600)
-    fig = go.Figure(data = trace, layout=layout)
-    fig.update_traces(showscale=False)
-    fig.update_layout(hovermode='x unified')
-    st.plotly_chart(fig)
-=======
 def plottingSpectrogram(data,idata,sr,flagToShow):
     # xticks for first sample and second sample
 
@@ -126,7 +89,6 @@ def plottingSpectrogram(data,idata,sr,flagToShow):
 #     fig.update_traces(showscale=False)
 #     fig.update_layout(hovermode='x unified')
 #     st.plotly_chart(fig)
->>>>>>> 1b0de655e3bf4fd4d80a9cd0d42c1933a01a9d2b
 
 def bins_separation(frequency, amplitude, sNumber):
     freq_axis_list = []
@@ -341,11 +303,7 @@ if file is not None:
         outputAudio(idata, sr)
         with col1:
             plotShow(data,idata, start_btn,pause_btn,resume_btn)
-<<<<<<< HEAD
-            plottingSpectrogram(frequencies,times,spectro)
-=======
         plottingSpectrogram(data,idata,sr,spec1)
->>>>>>> 1b0de655e3bf4fd4d80a9cd0d42c1933a01a9d2b
         
         # with col2:
             # plotShow(idata, start_btn)
