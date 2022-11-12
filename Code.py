@@ -162,7 +162,47 @@ def musicFunction(mag, freq, value):
             filter.append(mag[i])
     return filter
 
+def arrhythmia (arrhythmia,y_fourier):
+    new_y=y_fourier
+    df = pd.read_csv('arrhythmia_components.csv')
+    sub=df['sub']
+    abs_sub=df['abs_sub']
+    result = [item * arrhythmia for item in abs_sub]
+    new_y=np.add(y_fourier,result)
+    return new_y
 
+def ECG_mode(uploaded_file):
+
+    # ------------ECG Sliders  
+    Arrhythmia  =st.slider('Arrhythmia mode', step=1, max_value=100 , min_value=-100  ,value=0 )
+    Arrhythmia/=100
+    # Reading uploaded_file
+    df = pd.read_csv(uploaded_file)
+    uploaded_xaxis=df['time']
+    uploaded_yaxis=df['amp']
+    # Slicing big data
+    if (len(uploaded_xaxis)>1000):
+        uploaded_xaxis=uploaded_xaxis[:1000]
+    if (len(uploaded_yaxis)>1000):
+        uploaded_yaxis=uploaded_yaxis[:1000]
+
+    # fourier transorm
+    y_fourier = np.fft.fft(uploaded_yaxis)
+    
+    y_fourier=arrhythmia (Arrhythmia,y_fourier)
+    y_inverse_fourier = np.fft.ifft(y_fourier)
+    #Plotting
+    column1,column2,column3=st.columns([3,3,3])
+
+    uploaded_fig,uploaded_ax = plt.subplots()
+    uploaded_ax.set_title('ECG signal ')
+    # uploaded_ax.plot(uploaded_xaxis,y_inverse_fourier)  
+    uploaded_ax.plot(uploaded_xaxis[50:950],uploaded_yaxis[50:950])
+    uploaded_ax.plot(uploaded_xaxis[50:950],y_inverse_fourier[50:950])  
+    uploaded_ax.set_xlabel('Time ')
+    uploaded_ax.set_ylabel('Amplitude (mv)')
+    st.plotly_chart(uploaded_fig)
+    return y_inverse_fourier
 
 def plot_animation(df):
     brush = alt.selection_interval()
@@ -296,6 +336,8 @@ if file is not None:
             newMagnitudeList = vowlFunction(mag, freq, valueSlider) 
         elif option == 'Instruments':
             newMagnitudeList = musicFunction(mag, freq, valueSlider)
+        elif option == 'Medical Signal':
+            newMagnitudeList = ECG_mode(file)    
         else:
             newMagnitudeList = mag
         idata = inverseFourier(phase, newMagnitudeList)
