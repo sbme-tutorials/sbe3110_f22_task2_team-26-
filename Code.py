@@ -6,6 +6,7 @@ from scipy import signal
 import soundfile as sf
 import librosa.display
 import mpld3
+from plotly.subplots import make_subplots
 import  streamlit_vertical_slider  as svs
 import streamlit.components.v1 as components
 from streamlit.components.v1 import html
@@ -18,9 +19,13 @@ import plotly.graph_objects as go
 from matplotlib.widgets import Slider
 # from state import provide_state
 if 'start' not in st.session_state:
-    st.session_state.start=0
+    st.session_state['start']=0
 if 'size1' not in st.session_state:
-    st.session_state.size1=0
+    st.session_state['size1']=0
+if 'lines' not in st.session_state:
+    st.session_state['lines']=[]
+if 'flag' not in st.session_state:
+    st.session_state['flag'] = 1
 
 def loadAudio(file):
     y, sr = librosa.load(file)
@@ -30,9 +35,9 @@ def outputAudio(data, sr):
     sf.write('output.wav', data, sr)
     st.sidebar.audio('output.wav', format='audio/wav')
 
-# def spectrogram(data, sr):
-#     frequencies, times, spectro = signal.spectrogram(data, sr)
-#     return frequencies, times, spectro
+def spectrogram(data, sr):
+    frequencies, times, spectro = signal.spectrogram(data, sr)
+    return frequencies, times, spectro
 
 def fourierTransform(data, sr):
     N = len(data)
@@ -53,42 +58,18 @@ def plottingInfreqDomain(freq, data):
     fig = plt.figure(figsize=(6,3))
     plt.plot(freq, data)
     st.plotly_chart(fig)
-    
-
-def plottingSpectrogram(data,idata,sr,flagToShow):
-    # xticks for first sample and second sample
-
-        # yticks for spectrograms
-        fig, ax = plt.subplots(1, 2,figsize=(6,2))
-        # fig.tight_layout(pad=10.0)
-
-        ax[0].specgram(data, Fs=sr)
-        ax[0].set_xlabel(xlabel='Time [sec]', size=5)
-        ax[0].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=5)
-        # ax[0].set_yticks(helper)
-        # ax[0].set_yticklabels(spec_yticks)
-        ax[0].set_title("First Channel", fontsize=5)
-        ax[0].tick_params(axis='both', which='both', labelsize=5)
-
-        ax[1].specgram(idata, Fs=sr)
-        ax[1].set_xlabel(xlabel='Time [sec]', size=5)
-        ax[1].set_ylabel(ylabel='Frequency Amplitude [rad/s]', size=5)
-        # ax[1].set_yticks(helper)
-        # ax[1].set_yticklabels(spec_yticks)
-        ax[1].set_title("Second Channel", fontsize=5)
-        ax[1].tick_params(axis='both', which='both', labelsize=5)
-        if flagToShow:
-            st.pyplot(fig)
 
     
     
-# def plottingSpectrogram(inbins, infreqs, inPxx):
-#     trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
-#     layout = go.Layout(height=430, width=600)
-#     fig = go.Figure(data = trace, layout=layout)
-#     fig.update_traces(showscale=False)
-#     fig.update_layout(hovermode='x unified')
-#     st.plotly_chart(fig)
+def plottingSpectrogram(inbins, infreqs, inPxx,flag):
+    trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
+    layout = go.Layout(height=430, width=600)
+    fig = go.Figure(data = trace, layout=layout)
+    # fig.update_traces(showscale=False)
+    fig.update_layout(hovermode='x unified')
+    if flag:
+        st.plotly_chart(fig)
+    # return fig
 
 def bins_separation(frequency, amplitude, sNumber):
     freq_axis_list = []
@@ -106,23 +87,19 @@ def Sliders_generation(bin_max_frequency_value, sNumber):
         values = []
         for i in range(0, sNumber):
             with columns[i]:
-                # e = (i+1)*bin_max_frequency_value
-                # value = svs.vertical_slider( key= i, default_value=1, step=1, min_value=-1, max_value=1)
-                # if value == None:
-                #     value = 1
-                # values.append(value)
+                e = (i+1)*bin_max_frequency_value
                 value = svs.vertical_slider( key= i, default_value=0.0, step=0.1, min_value=-1.0, max_value=1.0)
                 if value == None:
                     value = 0.0
                 values.append(value)
-                # amplitude_axis_list[i] = value * amplitude_axis_list[i]
+                st.write(f"{e}")
                 
         return values
 
 def frequencyFunction(values, amplitude_axis_list):
     flist =[]
     for i in range(0, 10):
-            flist.append(amplitude_axis_list[i] * (values[i]))
+            flist.append(amplitude_axis_list[i] * (1+values[i]))
             
     flat_list =[]
     for sublist in flist:
@@ -185,129 +162,71 @@ def plot_animation(df):
 
 
 
-
-def plotShow(data, idata,start_btn,pause_btn,resume_btn):
-    time1 = np.linspace(0,2,len(data))
-    df = pd.DataFrame({'time': time1[::500], 
-                      'amplitude': data[:: 500],
-                      'amplitude after processing': idata[::500]}, columns=[
-                    'time', 'amplitude','amplitude after processing'])
-
-    lines = plot_animation(df)
+def plotShow(data, idata,start_btn,pause_btn,resume_btn,value,sr):
+    time1 = len(data)/(sr)
+    if time1>1:
+        time1 = int(time1)
+    time1 = np.linspace(0,time1,len(data))   
+    df = pd.DataFrame({'time': time1[::300], 
+                        'amplitude': data[:: 300],
+                        'amplitude after processing': idata[::300]}, columns=[
+                        'time', 'amplitude','amplitude after processing'])
+    N = df.shape[0]  # number of elements in the dataframe
+    burst = 10      # number of elements (months) to add to the plot
+    size = burst 
+    
+    step_df = df.iloc[0:st.session_state.size1]
+    lines = plot_animation(step_df)
     line_plot = st.altair_chart(lines)
+    line_plot= line_plot.altair_chart(lines)
+
+    # lines = plot_animation(df)
+    # line_plot = st.altair_chart(lines)
     N = df.shape[0]  # number of elements in the dataframe
     burst = 10      # number of elements (months) to add to the plot
     size = burst    #   size of the current dataset
     if start_btn:
+        st.session_state.flag = 1
         for i in range(1, N):
             st.session_state.start=i
-            print(st.session_state.start)
             step_df = df.iloc[0:size]
             lines = plot_animation(step_df)
             line_plot = line_plot.altair_chart(lines)
+            st.session_state.lines.append(line_plot)
             size = i + burst 
             st.session_state.size1 = size
-
-            
-            
-            
-    
-            # step_df = df.iloc[0:size]
-            # lines = plot_animation(step_df)
-            # line_plot = line_plot.altair_chart(lines)
-            # size = i + burst
-            # if size >= N:
-            #     size = N - 1
             time.sleep(.1)
-    elif resume_btn: 
-            print(st.session_state.start)
+
+    elif resume_btn:
+            st.session_state.flag = 1 
             for i in range( st.session_state.start,N):
                 st.session_state.start =i 
                 step_df = df.iloc[0:size]
                 lines = plot_animation(step_df)
                 line_plot = line_plot.altair_chart(lines)
+                st.session_state.lines.append(line_plot)
                 st.session_state.size1 = size
                 size = i + burst
                 time.sleep(.1)
-                 
-                # if st.session_state.size1 >=N:
-                #     size = N - 1
 
     elif pause_btn:
+            st.session_state.flag =0
             step_df = df.iloc[0:st.session_state.size1]
             lines = plot_animation(step_df)
-            line_plot = line_plot.altair_chart(lines)
-            # size = i + burst
-            if pause_btn:
-                print("pause")
+            line_plot= line_plot.altair_chart(lines)
+            s = st.session_state.lines.append(line_plot)
 
 
+    if st.session_state.flag == 1:
+        for i in range( st.session_state.start,N):
+                st.session_state.start =i 
+                step_df = df.iloc[0:size]
+                lines = plot_animation(step_df)
+                line_plot = line_plot.altair_chart(lines)
+                st.session_state.lines.append(line_plot)
+                st.session_state.size1 = size
+                size = i + burst
+                time.sleep(.1)
 
-
-st.set_page_config(page_title="Equalizer",layout='wide')
-st.markdown("""
-        <style>
-               .css-18e3th9 {
-                    padding-top: 2rem;
-                    padding-bottom: 15rem;
-                    padding-left: 2.5rem;
-                    padding-right: 5rem;
-                }
-        </style>
-        """, unsafe_allow_html=True)
-
-file = st.sidebar.file_uploader('Upload a file')
-col1, col2 = st.columns(2)
-option = st.sidebar.selectbox('', (' ', 'Frequency', 'Instruments', 'Medical Signal', 'Vowels' ))
-flag = 0 
-if option == 'Frequency':
-    sNumber = 10
-    flag = 1
-elif option == 'Instruments':
-    sNumber = 3
-    flag = 1
-elif option == 'Medical Signal':
-    sNumber = 4
-    flag = 1
-elif option == 'Vowels':
-    sNumber = 6
-    flag = 1
-elif option == 'None':
-    flag = 0
-
-
-
-if file is not None:
-
-    data, sr = loadAudio(file)
-    # frequencies, times, spectro = spectrogram(data, sr)
-    fdata, freq, mag, phase, number_samples = fourierTransform(data, sr)
-    if flag == 1:
-        freq_axis_list, amplitude_axis_list,bin_max_frequency_value = bins_separation(freq, mag, sNumber)
-        col1,col2,col3,col4 = st.columns(4)
-        start_btn  = col1.button("▷")
-        pause_btn  = col2.button(label='Pause')
-        resume_btn = col3.button(label='resume')
-        valueSlider = Sliders_generation(bin_max_frequency_value, sNumber)
-        spec1 = st.checkbox('Show Spectrogram')
-        if option == 'Frequency':
-            newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
-        elif option == 'Vowels':
-            newMagnitudeList = vowlFunction(mag, freq, valueSlider) 
-        elif option == 'Instruments':
-            newMagnitudeList = musicFunction(mag, freq, valueSlider)
-        else:
-            newMagnitudeList = mag
-        idata = inverseFourier(phase, newMagnitudeList)
-        audio = st.sidebar.audio(file, format='audio/wav')
-        outputAudio(idata, sr)
-        with col1:
-            plotShow(data,idata, start_btn,pause_btn,resume_btn)
-        plottingSpectrogram(data,idata,sr,spec1)
-        
-        # with col2:
-            # plotShow(idata, start_btn)
-            # plotShow(idata, start_btn)
-    else:
-        print("nothing")
-
+    
+            
