@@ -2,8 +2,11 @@ import streamlit as st
 import plotly.graph_objects as go
 from Code import *
 import os.path
+import copy
 
 
+if "pause_play_flag" not in st.session_state:
+    st.session_state.pause_play_flag = 1 
 if 'start' not in st.session_state:
     st.session_state['start']=0
 if 'size1' not in st.session_state:
@@ -12,6 +15,8 @@ if 'lines' not in st.session_state:
     st.session_state['lines']=[]
 if 'flag' not in st.session_state:
     st.session_state['flag'] = 0
+if 'startSize' not in st.session_state:
+    st.session_state['startSize'] = 0
 
 st.set_page_config(page_title="Equalizer",layout='wide')
 st.markdown("""
@@ -27,22 +32,20 @@ st.markdown("""
 
 file = st.sidebar.file_uploader('Upload a file')
 col1, col2 = st.columns(2)
-option = st.sidebar.selectbox('', (' ', 'Frequency', 'Instruments', 'Medical Signal', 'Vowels' ))
+option = st.sidebar.selectbox('', ('Frequency', 'Instruments', 'Medical Signal', 'Vowels' ))
 flag = 0 
 if option == 'Frequency':
-    sNumber = 10
-    flag = 1
+    sNumber, flag,nameFlag, names = settingvalues(10, 1,0, [])
+
 elif option == 'Instruments':
-    sNumber = 3
-    flag = 1
+    sNumber, flag,nameFlag, names = settingvalues(3, 1,1, ['Drums' , 'English horn', 'Glockenspiel'])
+
 elif option == 'Medical Signal':
-    sNumber = 4
-    flag = 1
+    sNumber, flag,nameFlag, names = settingvalues(4, 1,0, [])
+
 elif option == 'Vowels':
-    sNumber = 6
-    flag = 1
-elif option == 'None':
-    flag = 0
+    
+    sNumber, flag,nameFlag, names = settingvalues(3, 1,1, ['sh',"s",'a'])
 
 
 
@@ -59,22 +62,23 @@ if file is not None:
         frequencies, times, spectro = spectrogram(data, sr)
         fdata, freq, mag, phase, number_samples = fourierTransform(data, sr)
         if flag == 1:
-            freq_axis_list, amplitude_axis_list,bin_max_frequency_value = bins_separation(freq, mag, sNumber)
+            
+            freq_axis_list, amplitude_axis_list, bin_max_frequency_value = bins_separation(freq, mag, sNumber)
             plotting = st.radio("Plot",['Time Domain', 'Spectogram'], label_visibility="hidden", horizontal= True)
+            trymag = mag.copy()
             
             col1,col2 = st.columns(2)
-            c1,c2,c3,c4 = st.columns(4)
-            valueSlider = Sliders_generation(bin_max_frequency_value, sNumber)
+            btn_col1,btn_col2,btn_col3,btn_col4,btn_col5,btn_col6,btn_col7,btn_col8 = st.columns(8)
+            valueSlider = Sliders_generation(bin_max_frequency_value,freq, sNumber, names, nameFlag)
             
             if option == 'Frequency':
                 newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
             elif option == 'Vowels':
-                newMagnitudeList = vowlFunction(mag, freq, valueSlider) 
+                newMagnitudeList = vowlFunction(trymag, freq, valueSlider) 
             elif option == 'Instruments':
                 newMagnitudeList = musicFunction(mag, freq, valueSlider)
-    
             else:
-                newMagnitudeList = mag
+                print("")
             idata = inverseFourier(phase, newMagnitudeList)
             frequencies1, times1, spectro1 = spectrogram(idata, sr)
             audio = st.sidebar.audio(file, format='audio/wav')
@@ -82,18 +86,15 @@ if file is not None:
 
             with col1:
                 if plotting == 'Time Domain':
-                    start_btn  = c1.button("▷")
-                    pause_btn  = c2.button(label='Pause')
-                    resume_btn = c3.button(label='resume')
-                    default_btn = c4.button(label='Default')
-                    plotShow(data,idata, start_btn,pause_btn,resume_btn,valueSlider,sr,default_btn)
+                    # start_btn  = btn_col2.button("Play")
+                    pause_btn  = btn_col4.button(label='Pause')
+                    resume_btn = btn_col3.button(label='Play')
+                    plotShow(data,idata,pause_btn,resume_btn,valueSlider,sr)
 
             if plotting == 'Spectogram':
                 flag = True
                 with col1:
-                    # plottingSpectrogram(times,frequencies,spectro)
-                    plottingInfreqDomain(freq,mag)
+                    plotSpectrogram(data,sr)
                 with col2:
-                    # plottingSpectrogram(times1,frequencies1,spectro1)
-                    plottingInfreqDomain(freq,newMagnitudeList)
+                    plotSpectrogram(idata,sr)
 

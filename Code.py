@@ -30,10 +30,13 @@ def outputAudio(data, sr):
 def fourierTransform(data, sr):
     N = len(data)
     freq = np.fft.rfftfreq(N, 1/sr)[:(N//2)]
-    dataFFt = np.fft.fft(data)[:(N//2)]
+    dataFFt = np.fft.rfft(data)[:(N//2)]
     phase = np.angle(dataFFt)
     mag = np.abs(dataFFt)
     return dataFFt, freq, mag, phase, N
+
+def settingvalues(sNumber, flag,nameFlag, names):
+    return sNumber, flag,nameFlag, names
 
 def inverseFourier(phase, mag):
     newData = mag * np.exp(1j * phase)
@@ -48,6 +51,7 @@ def spectrogram(data, sr):
 def bins_separation(frequency, amplitude, sNumber):
     freq_axis_list = []
     amplitude_axis_list = []
+    e = []
     bin_max_frequency_value = math.ceil(len(frequency)/sNumber)
     i = 0
     for i in range(0, sNumber):
@@ -56,18 +60,23 @@ def bins_separation(frequency, amplitude, sNumber):
 
     return freq_axis_list, amplitude_axis_list,bin_max_frequency_value
 
-def Sliders_generation(bin_max_frequency_value, sNumber):
+def Sliders_generation(bin_max_frequency_value, frequency, sNumber, names, nameFlag):
         columns = st.columns(sNumber)
         values = []
         for i in range(0, sNumber):
             with columns[i]:
-                e = (i+1)*bin_max_frequency_value
                 value = svs.vertical_slider( key= i, default_value=0.0, step=0.1, min_value=-1.0, max_value=1.0)
                 if value == None:
-                    value = 0.0
+                    value = 0.1
                 values.append(value)
-                # st.write(f"{e}")
-                
+                if nameFlag==1:
+                    st.write(f"{names[i]}")
+                else:
+                    if i < 9:
+                        freq_values = int(frequency[(i+1)*bin_max_frequency_value])
+                    elif i ==9:
+                        freq_values = int(max(frequency))
+                    st.write(f"{freq_values}")
         return values
 
 def frequencyFunction(values, amplitude_axis_list):
@@ -81,50 +90,21 @@ def frequencyFunction(values, amplitude_axis_list):
                 flat_list.append(item)
 
     return flat_list
+       
 
 def vowlFunction(mag, freq, value): 
-    # ahRange  1000-1250 2000-2800
-    # iRange   2000-2800 3000-3450
-    # aiRange  2000-2300 2850-3000
-    # ʊRange   800-1000  2000-2400
-    # uRange   800-1000  2000-2300
     filter = []
     for i in range(len(mag)):
-        if value[0] != 0:
-            if 1000 < freq[i] < 1250:             
-                filter.append(mag[i] * ((value[0]+1)))
-            elif 2000 < freq[i] < 2800:
-                filter.append(mag[i] * (value[0]+1))
-            else:
-                filter.append(mag[i])
-        elif value[1] != 0:
-            if 2850 < freq[i] < 3450:             
-                filter.append(mag[i] * (value[1]+1))
-            elif 3000 < freq[i] < 3500:
-                filter.append(mag[i] * (value[1]+1))
-            else:
-                filter.append(mag[i])
-        elif value[2] != 0:
-            if 300 < freq[i] < 2300:             
-                filter.append(mag[i] * (value[2]+1))
-            elif 2800 < freq[i] < 3000:
-                filter.append(mag[i] * (value[2]+1))
-            else:
-                filter.append(mag[i])
-        elif value[3] != 0:
-            if 300 < freq[i] < 1000:             
-                filter.append(mag[i] * (value[3]+1))
-            elif 2000 < freq[i] < 2400:
-                filter.append(mag[i] * (value[3]+1))
-            else:
-                filter.append(mag[i])
-        elif value[4] != 0:
-            if 280 < freq[i] < 1000:             
-                filter.append(mag[i] * (value[4]+1))
-            elif 1800 < freq[i] < 2500:
-                filter.append(mag[i] * (value[4]+1))
-            else:
-                filter.append(mag[i])
+        if 1900 < freq[i] < 4500:             
+            filter.append(mag[i] * (1+value[0]))
+
+        elif 4500 < freq[i] < 8400:             
+            filter.append(mag[i] * (1+value[1]))
+
+        elif 500 < freq[i] < 700:             
+            filter.append(mag[i] * (1+value[2]))
+        elif 1600 < freq[i] < 1800:             
+            filter.append(mag[i] * (1+value[2]))
         else:
             filter.append(mag[i])
     return filter
@@ -138,7 +118,7 @@ def musicFunction(mag, freq, value):
         elif 280 < freq[i] < 1000:  #English horn
             filter.append(mag[i] * (1 + value[1]))
 
-        elif 1000 <= freq[i] < 7000:  #Glockenspeil its actual range is from 784 4186
+        elif 1000 <= freq[i] < 7000:  #Glockenspeil
             filter.append(mag[i] * (1 + value[2]))
 
         else:
@@ -157,31 +137,31 @@ def arrhythmia (arrhythmia,y_fourier):
 def ECG_mode(df):
 
     # ------------ECG Sliders  
-    Arrhythmia  =st.slider('Arrhythmia mode', step=1, max_value=100 , min_value=-100  ,value=100 )
+    Arrhythmia  =st.slider('Arrhythmia mode', step=1, max_value=100 , min_value=0  ,value=100 )
     Arrhythmia/=100
     # Reading uploaded_file
+    # df = pd.read_csv(uploaded_file)
     uploaded_xaxis=df['time']
     uploaded_yaxis=df['amp']
     # Slicing big data
     if (len(uploaded_xaxis)>1000):
-        uploaded_xaxis=uploaded_xaxis[:1000]
+        uploaded_xaxis=uploaded_xaxis[:2000]
     if (len(uploaded_yaxis)>1000):
-        uploaded_yaxis=uploaded_yaxis[:1000]
+        uploaded_yaxis=uploaded_yaxis[:2000]
 
     # fourier transorm
-    y_fourier = np.fft.fft(uploaded_yaxis)
-    
+    y_fourier,freq, mag, phase, N = fourierTransform(uploaded_yaxis, 160)
+
     y_fourier=arrhythmia (Arrhythmia,y_fourier)
-    y_inverse_fourier = np.fft.ifft(y_fourier)
+    new_mag= np.abs(y_fourier)
+    y_inverse_fourier = inverseFourier(phase, new_mag)
 
     uploaded_fig,uploaded_ax = plt.subplots()
-    uploaded_ax.set_title('ECG signal ') 
-    uploaded_ax.plot(uploaded_xaxis[50:950],uploaded_yaxis[50:950])
+    uploaded_ax.set_title('ECG signal ')
     uploaded_ax.plot(uploaded_xaxis[50:950],y_inverse_fourier[50:950])  
     uploaded_ax.set_xlabel('Time ')
     uploaded_ax.set_ylabel('Amplitude (mv)')
     st.plotly_chart(uploaded_fig)
-    return y_inverse_fourier
 
 def plot_animation(df):
     brush = alt.selection_interval()
@@ -212,16 +192,16 @@ def currentState(df, size, N):
     return line_plot
 
 def plotRep(df, size, start, N, line_plot):
-    for i in range(start, N):  #
+    for i in range(start, N - size):  #
             st.session_state.start=i 
-            step_df = df.iloc[0:size]
+            st.session_state.startSize = i-1
+            step_df = df.iloc[i:size + i]
             lines = plot_animation(step_df)
             line_plot.altair_chart(lines)
-            size = i + 10
-            st.session_state.size1 = size
+            st.session_state.size1 = size + i
             time.sleep(.1)   #
 
-def plotShow(data, idata,start_btn,pause_btn,resume_btn,value,sr,default_btn):
+def plotShow(data, idata,pause_btn,resume_btn,value,sr):
     time1 = len(data)/(sr)
     if time1>1:
         time1 = int(time1)
@@ -234,26 +214,28 @@ def plotShow(data, idata,start_btn,pause_btn,resume_btn,value,sr,default_btn):
     burst = 10      # number of elements (months) to add to the plot
     size = burst 
     line_plot = currentState(df, size, N)
+    # if st.session_state.size1 == len(data):
 
-    if start_btn:
-        st.session_state.flag = 1
-        plotRep(df, size, 1, N, line_plot)
 
-    elif resume_btn:
+    # if start_btn:
+    #     st.session_state.flag = 1
+    #     plotRep(df, size, 1, N, line_plot)
+
+    if resume_btn:
             st.session_state.flag = 1 
             plotRep(df, size, st.session_state.start, N, line_plot)
 
     elif pause_btn:
             st.session_state.flag =0
-            step_df = df.iloc[0:st.session_state.size1]
+            step_df = df.iloc[st.session_state.startSize:st.session_state.size1]
             lines = plot_animation(step_df)
             line_plot.altair_chart(lines)
 
-    elif default_btn:
-        st.session_state.flag =0
-        step_df = df.iloc[0:N]
-        lines = plot_animation(step_df)
-        line_plot= line_plot.altair_chart(lines)
+    # elif default_btn:
+    #     st.session_state.flag =0
+    #     step_df = df.iloc[0:N]
+    #     lines = plot_animation(step_df)
+    #     line_plot= line_plot.altair_chart(lines)
 
     if st.session_state.flag == 1:
         plotRep(df, size, st.session_state.start, N, line_plot)
@@ -262,7 +244,16 @@ def plottingInfreqDomain(freq, data):
     fig = plt.figure(figsize=(6,3))
     plt.plot(freq, data)
     st.plotly_chart(fig)
-  
+
+def plotSpectrogram(data, sr):
+    fig, ax = plt.subplots(1, sharex=True, figsize=(15,10))
+    ax.specgram(data, Fs=sr)
+
+    ax.set_ylabel('Frequency [Hz]')
+    plt.xlabel('Time [sec]')
+    st.pyplot(fig)
+
+
 def plottingSpectrogram(inbins, infreqs, inPxx):
     trace = [go.Heatmap(x= inbins, y= infreqs, z= 10*np.log10(inPxx), colorscale='Jet'),]
     layout = go.Layout(height=430, width=600)
