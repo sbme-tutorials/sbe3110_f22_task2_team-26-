@@ -6,17 +6,23 @@ import copy
 
 
 if "pause_play_flag" not in st.session_state:
-    st.session_state.pause_play_flag = 1 
+    st.session_state.pause_play_flag = False
 if 'start' not in st.session_state:
     st.session_state['start']=0
 if 'size1' not in st.session_state:
     st.session_state['size1']=0
+if 'i' not in st.session_state:
+    st.session_state['i']=0
 if 'lines' not in st.session_state:
     st.session_state['lines']=[]
 if 'flag' not in st.session_state:
-    st.session_state['flag'] = 0
+    st.session_state['flag'] = 1
+if 'flagStrat' not in st.session_state:
+    st.session_state['flagStart'] = 0
 if 'startSize' not in st.session_state:
     st.session_state['startSize'] = 0
+if 'fileName' not in st.session_state:
+    st.session_state['fileName'] = ''
 
 st.set_page_config(page_title="Equalizer",layout='wide')
 st.markdown("""
@@ -50,51 +56,59 @@ elif option == 'Vowels':
 
 
 if file is not None:
+    if st.session_state.fileName != file.name:
+        initial()
+
     file_name=file.name
+    st.session_state.fileName = file_name
     ext = os.path.splitext(file_name)[1][1:]
+
     if ext=='csv':
         df = pd.read_csv(file)
         if option == 'Medical Signal':
             ECG_mode(df) 
     else:
+        if option == 'Medical Signal':
+            st.write("")
+        else:
+            data, sr = loadAudio(file)
+            frequencies, times, spectro = spectrogram(data, sr)
+            fdata, freq, mag, phase, number_samples = fourierTransform(data, sr)
+            if flag == 1:
+                
+                freq_axis_list, amplitude_axis_list, bin_max_frequency_value = bins_separation(freq, mag, sNumber)
+                plotting = st.radio("Plot",['Time Domain', 'Spectogram'], label_visibility="hidden", horizontal= True)
+                trymag = mag.copy()
+                
+                col1,col2 = st.columns(2)
+                btn_col1,btn_col2,btn_col3,btn_col4,btn_col5,btn_col6,btn_col7,btn_col8 = st.columns(8)
+                valueSlider = Sliders_generation(bin_max_frequency_value,freq, sNumber, names, nameFlag)
+                
+                if option == 'Frequency':
+                    newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
+                elif option == 'Vowels':
+                    newMagnitudeList = vowel_music_Function(mag, freq, valueSlider, 1) 
+                elif option == 'Instruments':
+                    newMagnitudeList = vowel_music_Function(mag, freq, valueSlider, 0)
+                else:
+                    print("")
+                idata = inverseFourier(phase, newMagnitudeList)
+                frequencies1, times1, spectro1 = spectrogram(idata, sr)
+                audio = st.sidebar.audio(file, format='audio/wav')
+                outputAudio(idata, sr)
 
-        data, sr = loadAudio(file)
-        frequencies, times, spectro = spectrogram(data, sr)
-        fdata, freq, mag, phase, number_samples = fourierTransform(data, sr)
-        if flag == 1:
-            
-            freq_axis_list, amplitude_axis_list, bin_max_frequency_value = bins_separation(freq, mag, sNumber)
-            plotting = st.radio("Plot",['Time Domain', 'Spectogram'], label_visibility="hidden", horizontal= True)
-            trymag = mag.copy()
-            
-            col1,col2 = st.columns(2)
-            btn_col1,btn_col2,btn_col3,btn_col4,btn_col5,btn_col6,btn_col7,btn_col8 = st.columns(8)
-            valueSlider = Sliders_generation(bin_max_frequency_value,freq, sNumber, names, nameFlag)
-            
-            if option == 'Frequency':
-                newMagnitudeList = frequencyFunction(valueSlider, amplitude_axis_list)
-            elif option == 'Vowels':
-                newMagnitudeList = vowlFunction(trymag, freq, valueSlider) 
-            elif option == 'Instruments':
-                newMagnitudeList = musicFunction(mag, freq, valueSlider)
-            else:
-                print("")
-            idata = inverseFourier(phase, newMagnitudeList)
-            frequencies1, times1, spectro1 = spectrogram(idata, sr)
-            audio = st.sidebar.audio(file, format='audio/wav')
-            outputAudio(idata, sr)
-
-            with col1:
-                if plotting == 'Time Domain':
-                    # start_btn  = btn_col2.button("Play")
-                    pause_btn  = btn_col4.button(label='Pause')
-                    resume_btn = btn_col3.button(label='Play')
-                    plotShow(data,idata,pause_btn,resume_btn,valueSlider,sr)
-
-            if plotting == 'Spectogram':
-                flag = True
                 with col1:
-                    plotSpectrogram(data,sr)
-                with col2:
-                    plotSpectrogram(idata,sr)
+                    if plotting == 'Time Domain':
+                        # start_btn  = btn_col2.button("Play")
+                        pause_btn  = btn_col4.button(label='Pause/Resume')
+                        # resume_btn = btn_col3.button(label='Play')
+                        plotShow(data,idata,pause_btn,valueSlider,sr)
+                        
+
+                if plotting == 'Spectogram':
+                    flag = True
+                    with col1:
+                        plotSpectrogram(data,sr)
+                    with col2:
+                        plotSpectrogram(idata,sr)
 

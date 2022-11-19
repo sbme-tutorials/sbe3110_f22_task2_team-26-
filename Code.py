@@ -17,6 +17,17 @@ import altair as alt
 import time
 import plotly.graph_objects as go
 from matplotlib.widgets import Slider
+import copy
+
+def initial():
+    st.session_state.pause_play_flag = False
+    st.session_state['start']=0
+    st.session_state['size1']=0
+    st.session_state['i']=0
+    st.session_state['lines']=[]
+    st.session_state['flag'] = 1
+    st.session_state['flagStart'] = 0
+    st.session_state['startSize'] = 0
 
 
 def loadAudio(file):
@@ -29,8 +40,8 @@ def outputAudio(data, sr):
 
 def fourierTransform(data, sr):
     N = len(data)
-    freq = np.fft.rfftfreq(N, 1/sr)[:(N//2)]
-    dataFFt = np.fft.rfft(data)[:(N//2)]
+    freq = np.fft.rfftfreq(N, 1/sr)
+    dataFFt = np.fft.rfft(data)
     phase = np.angle(dataFFt)
     mag = np.abs(dataFFt)
     return dataFFt, freq, mag, phase, N
@@ -67,7 +78,7 @@ def Sliders_generation(bin_max_frequency_value, frequency, sNumber, names, nameF
             with columns[i]:
                 value = svs.vertical_slider( key= i, default_value=0.0, step=0.1, min_value=-1.0, max_value=1.0)
                 if value == None:
-                    value = 0.1
+                    value = 0.0
                 values.append(value)
                 if nameFlag==1:
                     st.write(f"{names[i]}")
@@ -91,39 +102,30 @@ def frequencyFunction(values, amplitude_axis_list):
 
     return flat_list
        
-
-def vowlFunction(mag, freq, value): 
-    filter = []
+def getindex(mag, freq, frequency_inHz):
+    index = []
     for i in range(len(mag)):
-        if 1900 < freq[i] < 4500:             
-            filter.append(mag[i] * (1+value[0]))
+        if  frequency_inHz - 0.5 < freq[i] < frequency_inHz + 0.5 :
+            index.append(i)
 
-        elif 4500 < freq[i] < 8400:             
-            filter.append(mag[i] * (1+value[1]))
+    return(index[0])
 
-        elif 500 < freq[i] < 700:             
-            filter.append(mag[i] * (1+value[2]))
-        elif 1600 < freq[i] < 1800:             
-            filter.append(mag[i] * (1+value[2]))
-        else:
-            filter.append(mag[i])
+
+def vowel_music_Function(mag, freq, value,vowelflag):
+    filter = mag.copy()
+    if vowelflag:       #sh(1900:4500)      s(4500:8400)
+        vowel_music = [getindex(mag,freq,1900), getindex(mag,freq,4500), getindex(mag,freq,8400),getindex(mag,freq,10000)]
+        print("vowel")
+    else:              #drums(0:280)      english horn(280:1000)      glockenspiel(1000:7000)
+        vowel_music = [getindex(mag,freq,0), getindex(mag,freq,280), getindex(mag,freq,1000), getindex(mag,freq,7000)]
+        print("music")
+
+    filter[vowel_music[0]:vowel_music[1]] = filter[vowel_music[0]:vowel_music[1]]*(1+value[0])
+    filter[vowel_music[1]:vowel_music[2]] = filter[vowel_music[1]:vowel_music[2]]*(1+value[1])
+    filter[vowel_music[2]:vowel_music[3]] = filter[vowel_music[2]:vowel_music[3]]*(1+value[2])
+
     return filter
 
-def musicFunction(mag, freq, value):
-    filter = []
-    for i in range(len(mag)):
-        if 0 <= freq[i] < 279:    #Drums
-            filter.append(mag[i] *(1 + value[0]))
-
-        elif 280 < freq[i] < 1000:  #English horn
-            filter.append(mag[i] * (1 + value[1]))
-
-        elif 1000 <= freq[i] < 7000:  #Glockenspeil
-            filter.append(mag[i] * (1 + value[2]))
-
-        else:
-            filter.append(mag[i])
-    return filter
 
 def arrhythmia (arrhythmia,y_fourier):
     new_y=y_fourier
@@ -181,11 +183,12 @@ def plot_animation(df):
     return figure
 
 def currentState(df, size, N):
-    step_df = df.iloc[0:size]   #
     if st.session_state.size1 == 0:
         step_df = df.iloc[0:N]
-    if st.session_state.flag == 0:
+    if st.session_state.flagStart == 0:
         step_df = df.iloc[0:N]
+    if st.session_state.flag == 0:
+        step_df = df.iloc[st.session_state.i : st.session_state.size1 - 1]
     lines = plot_animation(step_df)
     line_plot = st.altair_chart(lines)
     line_plot = line_plot.altair_chart(lines)  #
@@ -196,12 +199,19 @@ def plotRep(df, size, start, N, line_plot):
             st.session_state.start=i 
             st.session_state.startSize = i-1
             step_df = df.iloc[i:size + i]
+            st.session_state.size1 = size + i
+            st.session_state.i = i
             lines = plot_animation(step_df)
             line_plot.altair_chart(lines)
             st.session_state.size1 = size + i
             time.sleep(.1)   #
+    if st.session_state.size1 == N - 1:
+        st.session_state.flag =1
+        step_df = df.iloc[0:N]
+        lines = plot_animation(step_df)
+        line_plot.altair_chart(lines)
 
-def plotShow(data, idata,pause_btn,resume_btn,value,sr):
+def plotShow(data, idata,pause_btn,value,sr):
     time1 = len(data)/(sr)
     if time1>1:
         time1 = int(time1)
@@ -214,31 +224,18 @@ def plotShow(data, idata,pause_btn,resume_btn,value,sr):
     burst = 10      # number of elements (months) to add to the plot
     size = burst 
     line_plot = currentState(df, size, N)
-    # if st.session_state.size1 == len(data):
 
-
-    # if start_btn:
-    #     st.session_state.flag = 1
-    #     plotRep(df, size, 1, N, line_plot)
-
-    if resume_btn:
-            st.session_state.flag = 1 
+    if pause_btn:
+        st.session_state.flag = 0
+        st.session_state.pause_play_flag = not(st.session_state.pause_play_flag)
+        if st.session_state.pause_play_flag :
             plotRep(df, size, st.session_state.start, N, line_plot)
-
-    elif pause_btn:
-            st.session_state.flag =0
-            step_df = df.iloc[st.session_state.startSize:st.session_state.size1]
-            lines = plot_animation(step_df)
-            line_plot.altair_chart(lines)
-
-    # elif default_btn:
-    #     st.session_state.flag =0
-    #     step_df = df.iloc[0:N]
-    #     lines = plot_animation(step_df)
-    #     line_plot= line_plot.altair_chart(lines)
-
-    if st.session_state.flag == 1:
+    
+    if st.session_state.pause_play_flag:
+        st.session_state.flag = 1
         plotRep(df, size, st.session_state.start, N, line_plot)
+        
+
 
 def plottingInfreqDomain(freq, data):
     fig = plt.figure(figsize=(6,3))
@@ -246,6 +243,7 @@ def plottingInfreqDomain(freq, data):
     st.plotly_chart(fig)
 
 def plotSpectrogram(data, sr):
+    initial()
     fig, ax = plt.subplots(1, sharex=True, figsize=(15,10))
     ax.specgram(data, Fs=sr)
 
