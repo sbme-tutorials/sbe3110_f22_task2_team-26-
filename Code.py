@@ -147,12 +147,12 @@ def ECG_mode(df):
     uploaded_yaxis=df['amp']
     # Slicing big data
     if (len(uploaded_xaxis)>1000):
-        uploaded_xaxis=uploaded_xaxis[:2000]
+        uploaded_xaxis=uploaded_xaxis[:2001]
     if (len(uploaded_yaxis)>1000):
-        uploaded_yaxis=uploaded_yaxis[:2000]
+        uploaded_yaxis=uploaded_yaxis[:2001]
 
     # fourier transorm
-    y_fourier,freq, mag, phase, N = fourierTransform(uploaded_yaxis, 160)
+    y_fourier,freq, mag, phase, N = fourierTransform(uploaded_yaxis[:-2], 160)
 
     y_fourier=arrhythmia (Arrhythmia,y_fourier)
     new_mag= np.abs(y_fourier)
@@ -246,7 +246,6 @@ def plotSpectrogram(data, sr):
     initial()
     fig, ax = plt.subplots(1, sharex=True, figsize=(15,10))
     ax.specgram(data, Fs=sr)
-
     ax.set_ylabel('Frequency [Hz]')
     plt.xlabel('Time [sec]')
     st.pyplot(fig)
